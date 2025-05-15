@@ -5,6 +5,7 @@ import Map.Map;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,9 +43,18 @@ public class Player extends Entity implements Runnable {
         this.map = map;
         this.lives = 3;
         this.immortal = false;
+        this.animationFrames = new ArrayList<>();
 
-        playerLabel = new JLabel();
+        // Add explicit position and size settings
+        setBounds(playerX, playerY, map.getTileSize(), map.getTileSize());
+
         loadPacmanFrames();
+
+        // Set initial icon immediately after loading frames
+        setIcon(pacmanFrames[0]);
+
+        // Make sure the component is visible
+        setVisible(true);
 
         animationThread = new Thread(this);
         animationThread.start();
@@ -52,43 +62,74 @@ public class Player extends Entity implements Runnable {
 
     private void loadPacmanFrames() {
         pacmanFrames = new ImageIcon[NUM_FRAMES];
-        pacmanFrames[0] = new ImageIcon("res/pacman/pacman1.png");
-        pacmanFrames[1] = new ImageIcon("res/pacman/pacman2.png");
-        pacmanFrames[2] = new ImageIcon("res/pacman/pacman3.png");
+
+        // Load and resize images to match tile size
+        int tileSize = map.getTileSize();
+
+        try {
+            for (int i = 0; i < NUM_FRAMES; i++) {
+                String path = "res/pacman/pacman" + (i+1) + ".png";
+                ImageIcon icon = new ImageIcon(path);
+                Image img = icon.getImage();
+                Image resizedImg = img.getScaledInstance(tileSize, tileSize, Image.SCALE_SMOOTH);
+                pacmanFrames[i] = new ImageIcon(resizedImg);
+                System.out.println("Loaded pacman frame " + (i+1) + " from: " + path); // Debug output
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading Pacman images: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
-
-
     private void loadAnimationFrames() {
+        if (animationFrames == null) {
+            animationFrames = new ArrayList<>();
+        } else {
+            animationFrames.clear(); // Clear existing frames before adding new ones
+        }
 
         for (ImageIcon image : pacmanFrames) {
             animationFrames.add(image);
         }
     }
 
-
     @Override
     public void run() {
+        int frameIndex = 0;
+        boolean increasing = true; // Flag to track direction of animation
 
+        while (true) {
+            // Update the current frame
+            myFrame = pacmanFrames[frameIndex];
 
-            myFrame = pacmanFrames[pacmanFrames.length % NUM_FRAMES];
+            // Set the direction of animation
+            if (increasing) {
+                frameIndex++;
+                // If we reached the end, start decreasing
+                if (frameIndex >= NUM_FRAMES - 1) {
+                    increasing = false;
+                }
+            } else {
+                frameIndex--;
+                // If we reached the beginning, start increasing
+                if (frameIndex <= 0) {
+                    increasing = true;
+                }
+            }
 
+            // Update the icon
             setImageIcon(myFrame);
 
-            // Direction-based image flipping
-            if (currentDirection == AllDirections.LEFT && !isFlippedHorizontally) {
-                flipImageHorizontally();
-            } else if (currentDirection != AllDirections.LEFT && isFlippedHorizontally) {
-                flipImageHorizontally();
-            }
-            loadAnimationFrames();
+            // Ensure visibility and correct position
+            setVisible(true);
+            setLocation(playerX, playerY);
 
             try {
-                Thread.sleep(200); // Adjust delay as needed for animation speed
+                Thread.sleep(150); // Slightly faster animation for smoother effect
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
+        }
     }
 
     public ImageIcon getImageIcon() {
@@ -97,17 +138,17 @@ public class Player extends Entity implements Runnable {
 
     // Setter method for setting the ImageIcon
     public void setImageIcon(ImageIcon icon) {
-        this.myFrame = icon;
-        setIcon(icon); // Update the JLabel's icon
-        repaint(); // Refresh the component
-    }
+        if (icon == null) {
+            System.err.println("Warning: Attempting to set null icon for Pacman");
+            return;
+        }
 
-    private void flipImageHorizontally() {
-        ImageIcon currentImageIcon = myFrame;
-        Image currentImage = currentImageIcon.getImage();
-        Image flippedImage = currentImage.getScaledInstance(currentImage.getWidth(null) * -1, currentImage.getHeight(null), Image.SCALE_DEFAULT);
-        setImageIcon(new ImageIcon(flippedImage));
-        isFlippedHorizontally = !isFlippedHorizontally;
+        this.myFrame = icon;
+        setIcon(icon);
+
+        // Force a repaint
+        revalidate();
+        repaint();
     }
 
     public void startAnimation() {
@@ -177,8 +218,14 @@ public class Player extends Entity implements Runnable {
 
         // Check if the next position in the queued direction is walkable
         if (queuedDirectionP != AllDirections.NULL && !collidesWithWalls(nextPlayerX, nextPlayerY, queuedDirectionP)) {
+            AllDirections previousDirection = currentDirectionP;
             currentDirectionP = queuedDirectionP;
             queuedDirectionP = AllDirections.NULL;
+
+            // Only update rotation if direction actually changed
+            if (previousDirection != currentDirectionP) {
+                updatePacmanRotation();
+            }
         }
 
         // Calculate the next position based on the current direction
@@ -209,6 +256,76 @@ public class Player extends Entity implements Runnable {
         }
 
         setLocation(playerX, playerY);
+        setVisible(true); // Ensure the player is visible
+    }
+
+    private void updatePacmanRotation() {
+        // Reset images to original orientation first
+        loadPacmanFrames();
+
+        // Now apply the appropriate transformation
+        switch (currentDirectionP) {
+            case LEFT:
+                // Flip horizontally
+                for (int i = 0; i < pacmanFrames.length; i++) {
+                    pacmanFrames[i] = flipImageHorizontally(pacmanFrames[i]);
+                }
+                break;
+            case UP:
+                // Rotate 90 degrees counterclockwise
+                for (int i = 0; i < pacmanFrames.length; i++) {
+                    pacmanFrames[i] = rotateImage(pacmanFrames[i], 270);
+                }
+                break;
+            case DOWN:
+                // Rotate 90 degrees clockwise
+                for (int i = 0; i < pacmanFrames.length; i++) {
+                    pacmanFrames[i] = rotateImage(pacmanFrames[i], 90);
+                }
+                break;
+            case RIGHT:
+                // Original orientation - no transformation needed
+                break;
+        }
+
+        // Update the current frame
+        setImageIcon(pacmanFrames[0]);
+    }
+
+    private ImageIcon flipImageHorizontally(ImageIcon icon) {
+        if (icon == null) return null;
+
+        Image img = icon.getImage();
+        BufferedImage buffImg = new BufferedImage(
+                icon.getIconWidth(),
+                icon.getIconHeight(),
+                BufferedImage.TYPE_INT_ARGB
+        );
+
+        Graphics2D g2d = buffImg.createGraphics();
+        g2d.scale(-1, 1);
+        g2d.drawImage(img, -icon.getIconWidth(), 0, null);
+        g2d.dispose();
+
+        return new ImageIcon(buffImg);
+    }
+
+    private ImageIcon rotateImage(ImageIcon icon, int degrees) {
+        if (icon == null) return null;
+
+        Image img = icon.getImage();
+        BufferedImage buffImg = new BufferedImage(
+                icon.getIconWidth(),
+                icon.getIconHeight(),
+                BufferedImage.TYPE_INT_ARGB
+        );
+
+        Graphics2D g2d = buffImg.createGraphics();
+        g2d.rotate(Math.toRadians(degrees), icon.getIconWidth()/2, icon.getIconHeight()/2);
+        g2d.drawImage(img, 0, 0, null);
+        g2d.dispose();
+
+        return new ImageIcon(buffImg);
     }
 
     private boolean collidesWithWalls(int x, int y, AllDirections direction) {
