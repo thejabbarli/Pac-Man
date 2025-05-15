@@ -1,7 +1,7 @@
 package Main;
 
 import Entity.Boost.Boost;
-import Entity.Ghost;
+import Entity.ghosts.*;
 import Entity.Player;
 import Map.Map;
 import Map.Second.BoostGenerator;
@@ -63,16 +63,30 @@ public class GamePanel extends JLayeredPane implements Runnable {
         // Get the top-left open position from the map
         java.awt.Point startPoint = map.findTopLeftOpenPosition();
 
+        // Create player at the top-left open position
         player = new Player(startPoint.x, startPoint.y, 10, map, "res/pacman/pacman1", keyManager);
         charactersPanel.add(player);
 
-        ghostBlue = new Ghost(150, 50, 5, map, "res/ghosts/ghostAmogusCyan.png");
-        ghostRed = new Ghost(900, 900, 5, map, "res/ghosts/ghostAmogusRed.png");
-        charactersPanel.add(ghostBlue);
-        charactersPanel.add(ghostRed);
+        // Create ghosts - Blinky first since Inky depends on it
+        ghostRed = new Blinky(900, 900, 5, map, "res/ghosts/ghostAmogusRed.png", player);
 
+        // Create Inky with reference to Blinky
+        ghostBlue = new Inky(150, 50, 5, map, "res/ghosts/ghostAmogusCyan.png", player, ghostRed);
+
+        // Create other ghosts
+        Ghost ghostPink = new Pinky(50, 150, 5, map, "res/ghosts/ghostAmogusPink.png", player);
+        Ghost ghostOrange = new Clyde(150, 150, 5, map, "res/ghosts/ghostAmogusOrange.png", player);
+
+        // Add all ghosts to the characters panel
+        charactersPanel.add(ghostRed);
+        charactersPanel.add(ghostBlue);
+        charactersPanel.add(ghostPink);
+        charactersPanel.add(ghostOrange);
+
+        // Generate edibles
         edibles = EdibleGenerator.generateEdibles(map, yemPanel, situation);
 
+        // Create UI labels
         situationLabel = new JLabel("Points: 0");
         situationLabel.setBounds(map.getX(), 10, 150, 30);
         situationLabel.setForeground(Color.WHITE);
@@ -81,6 +95,7 @@ public class GamePanel extends JLayeredPane implements Runnable {
         timeLabel.setBounds(map.getX() + map.getWidth() - 150, 10, 150, 30);
         timeLabel.setForeground(Color.WHITE);
 
+        // Add components to layers
         add(map, Integer.valueOf(1));
         add(yemPanel, Integer.valueOf(4));
         add(charactersPanel, Integer.valueOf(5));
@@ -90,8 +105,10 @@ public class GamePanel extends JLayeredPane implements Runnable {
 
         setPreferredSize(map.getPreferredSize());
 
-        boostGenerator = new BoostGenerator(map, this);
+        // Create boost generator
+        boostGenerator = new BoostGenerator(map, this, ghostBlue);
 
+        // Start game thread
         gameThread = new Thread(this);
         gameThread.start();
     }

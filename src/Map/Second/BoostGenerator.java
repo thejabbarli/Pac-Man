@@ -1,29 +1,29 @@
 package Map.Second;
 
+
 import Entity.Boost.*;
+import Entity.ghosts.Ghost;
 import Main.GamePanel;
 import Map.Map;
-import Map.Third.GameSettings;
 
-import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static Entity.Ghost.ghostX;
-import static Entity.Ghost.ghostY;
 public class BoostGenerator {
 
     private List<Boost> boosts;
     private Map map;
     private Random random;
     private GamePanel gamePanel;
+    private Ghost ghost; // Reference to a ghost
 
-    public BoostGenerator(Map map, GamePanel gamePanel) {
+    public BoostGenerator(Map map, GamePanel gamePanel, Ghost ghost) {
         this.map = map;
         this.boosts = new ArrayList<>();
         this.random = new Random();
         this.gamePanel = gamePanel;
+        this.ghost = ghost; // Store ghost reference
 
         Thread boostCreationThread = new Thread(this::boostCreationTask);
         boostCreationThread.start();
@@ -46,14 +46,9 @@ public class BoostGenerator {
     }
 
     private void createRandomBoost() {
-        List<java.awt.Point> ghostPositions = GameSettings.getInstance().getGhostStarts();
-
-        if (ghostPositions == null || ghostPositions.isEmpty()) {
-            return; // No ghosts available, exit without adding boost
-        }
-
-        int randomGhostIndex = random.nextInt(ghostPositions.size());
-        Point ghostPosition = ghostPositions.get(randomGhostIndex);
+        // Get ghost position using getters
+        int ghostX = ghost.getGhostX();
+        int ghostY = ghost.getGhostY();
 
         Boost boost = null;
         switch (random.nextInt(5)) {

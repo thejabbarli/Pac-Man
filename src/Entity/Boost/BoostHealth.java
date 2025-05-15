@@ -1,6 +1,6 @@
 package Entity.Boost;
 
-import Entity.Ghost;
+import Entity.ghosts.Ghost;
 import Entity.Player;
 import Map.Map; // Ensure this import points to your custom Map class
 import javax.swing.*;

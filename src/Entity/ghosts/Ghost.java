@@ -1,119 +1,127 @@
-package Entity;
+package Entity.ghosts;
 
+import Entity.Entity;
+import Entity.AllDirections;
+
+import Entity.Player;
 import Map.Map;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.Arrays;
 import java.util.List;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
-import static Entity.Player.playerX;
-import static Entity.Player.playerY;
+public abstract class Ghost extends Entity {
+    protected int ghostX;
+    protected int ghostY;
+    protected int ghostSpeed;
+    protected boolean poisonated;
+    protected Player player;
 
-public class Ghost extends Entity {
+    protected GhostMode currentMode;
+    protected int scatterTimer;
+    protected int chaseTimer;
 
-    public static int ghostX;
-    public static int ghostY;
-    private int ghostSpeed;
+    protected AllDirections currentDirectionG = AllDirections.NULL;
+    protected AllDirections queuedDirectionG = AllDirections.NULL;
 
-    private boolean poisonated;
+    protected int targetX;
+    protected int targetY;
 
-    private AllDirections currentDirectionG = AllDirections.NULL;
-    private AllDirections queuedDirectionG = AllDirections.NULL;
+    // Add enum for ghost mode
+    public enum GhostMode {
+        CHASE,
+        SCATTER,
+        FRIGHTENED
+    }
 
-    private Thread animationThread;
-    private List<ImageIcon> animationFrames;
-    private static final int NUM_FRAMES = 3;
-    private static final int MS = 100;
-
-    private int targetX;
-    private int targetY;
-
-
-    public Ghost(int ghostX, int ghostY, int ghostSpeed, Map map, String myImage) {
+    public Ghost(int ghostX, int ghostY, int ghostSpeed, Map map, String myImage, Player player) {
         super(ghostX, ghostY, ghostSpeed, myImage);
         this.map = map;
         this.ghostX = ghostX;
         this.ghostY = ghostY;
         this.ghostSpeed = ghostSpeed;
+        this.player = player;
+        this.currentMode = GhostMode.SCATTER;
+        this.scatterTimer = 700;
+        this.chaseTimer = 2000;
 
-        setBounds(ghostX, ghostY, tileSize, tileSize);
-        ImageIcon image = new ImageIcon(myImage);
+        setBounds(ghostX, ghostY, map.getTileSize(), map.getTileSize());
+        loadImage(myImage);
+        poisonated = false;
+    }
+
+    protected void loadImage(String imagePath) {
+        ImageIcon image = new ImageIcon(imagePath);
         Image resizedImage = image.getImage().getScaledInstance(map.getTileSize(), map.getTileSize(), Image.SCALE_SMOOTH);
         setIcon(new ImageIcon(resizedImage));
         setBounds(ghostX, ghostY, map.getTileSize(), map.getTileSize());
-
-        poisonated = false;
-
-        loadAnimationFrames();
-
-        // animationThread = new Thread(this::animateGhost);
-        // animationThread.start();
-
-
     }
-     /*public double getDistanceY(int x, int y){
-        int distanceY =  Math.abs(x - y);
-        return distanceY;
-    }*/
 
     public void setGhostX(int x) {
         this.ghostX = x;
     }
-    public void setGhostY(int x) {
-        this.ghostX = x;
+
+    public void setGhostY(int y) {
+        this.ghostY = y;
     }
 
-    public void setImage(String imagePath){
-
-    }
     public void setPoisonated(boolean poisonated) {
         this.poisonated = poisonated;
+        if (poisonated) {
+            currentMode = GhostMode.FRIGHTENED;
+            loadImage("res/ghosts/ghostAmogusPoisoned.png");
+        } else {
+            currentMode = GhostMode.CHASE; // Return to chase mode when not poisoned
+            updateGhostAppearance();
+        }
     }
-    public boolean getPoisonated(){
+
+    public boolean getPoisonated() {
         return poisonated;
     }
 
-    public double getDistanceLine(double x, double y){
-        double distanceX =  Math.abs(x - y);
-        return distanceX;
+    public double getDistanceLine(double x, double y) {
+        return Math.abs(x - y);
     }
 
-
-    public double getDistance(double x, double y){
-        double distance = Math.hypot(x, y);
-        return distance;
+    public double getDistance(double x, double y) {
+        return Math.hypot(x, y);
     }
 
-
-    public AllDirections recommendedQueuedDirection(){
-
-        if(!poisonated){
-            setTargetX(playerX);
-            setTargetY(playerY);
-            ImageIcon image = new ImageIcon("res/ghosts/ghostAmogusCyan.png");
-            Image resizedImage = image.getImage().getScaledInstance(map.getTileSize(), map.getTileSize(), Image.SCALE_SMOOTH);
-            setIcon(new ImageIcon(resizedImage));
-            setBounds(ghostX, ghostY, map.getTileSize(), map.getTileSize());
+    // Update timer and switch modes
+    public void updateMode() {
+        if (!poisonated) { // Only update mode if not frightened due to poison
+            if (currentMode == GhostMode.SCATTER) {
+                scatterTimer--;
+                if (scatterTimer <= 0) {
+                    currentMode = GhostMode.CHASE;
+                    chaseTimer = 2000;
+                    updateGhostAppearance();
+                }
+            } else if (currentMode == GhostMode.CHASE) {
+                chaseTimer--;
+                if (chaseTimer <= 0) {
+                    currentMode = GhostMode.SCATTER;
+                    scatterTimer = 700;
+                    updateGhostAppearance();
+                }
+            }
         }
-        else {
-            ImageIcon image = new ImageIcon("res/ghosts/ghostAmogusPoisoned.png");
-            Image resizedImage = image.getImage().getScaledInstance(map.getTileSize(), map.getTileSize(), Image.SCALE_SMOOTH);
-            setIcon(new ImageIcon(resizedImage));
-            setBounds(ghostX, ghostY, map.getTileSize(), map.getTileSize());
-            setTargetY(0);
-            setTargetX(0);
-        }
+    }
 
+    // Abstract methods to be implemented by specific ghosts
+    protected abstract void updateTarget();
+    protected abstract void updateGhostAppearance();
 
+    public AllDirections recommendedQueuedDirection() {
+        // Update the target based on the ghost's specific behavior
+        updateTarget();
 
         int rightPlace = (ghostX + ghostSpeed);
         int leftPlace = (ghostX - ghostSpeed);
         int upPlace = (ghostY - ghostSpeed);
         int downPlace = (ghostY + ghostSpeed);
-
 
         double ifRight = 0;
         double ifLeft = 0;
@@ -125,23 +133,32 @@ public class Ghost extends Entity {
         boolean checkLeft = false;
         boolean checkUp = false;
 
-
-
-        if (!collidesWithWalls(rightPlace, ghostY,AllDirections.RIGHT) && currentDirectionG != AllDirections.LEFT){
+        if (!collidesWithWalls(rightPlace, ghostY, AllDirections.RIGHT) && currentDirectionG != AllDirections.LEFT) {
             checkRight = true;
             ifRight = getDistance(getDistanceLine(rightPlace, getTargetX()), getDistanceLine(ghostY, getTargetY()));
         }
-        if (!collidesWithWalls(ghostX, downPlace,AllDirections.DOWN) && currentDirectionG != AllDirections.UP){
+
+        if (!collidesWithWalls(ghostX, downPlace, AllDirections.DOWN) && currentDirectionG != AllDirections.UP) {
             checkDown = true;
-            ifDown = getDistance(getDistanceLine(downPlace, getTargetY()), getDistanceLine(ghostX, getTargetX()));
+            ifDown = getDistance(getDistanceLine(ghostX, getTargetX()), getDistanceLine(downPlace, getTargetY()));
         }
-        if (!collidesWithWalls(leftPlace, ghostY,AllDirections.LEFT) && currentDirectionG != AllDirections.RIGHT){
+
+        if (!collidesWithWalls(leftPlace, ghostY, AllDirections.LEFT) && currentDirectionG != AllDirections.RIGHT) {
             checkLeft = true;
             ifLeft = getDistance(getDistanceLine(leftPlace, getTargetX()), getDistanceLine(ghostY, getTargetY()));
         }
-        if (!collidesWithWalls(ghostX, upPlace,AllDirections.UP) && currentDirectionG != AllDirections.DOWN){
+
+        if (!collidesWithWalls(ghostX, upPlace, AllDirections.UP) && currentDirectionG != AllDirections.DOWN) {
             checkUp = true;
-            ifUp = getDistance(getDistanceLine(upPlace, getTargetY()), getDistanceLine(ghostX, getTargetX()));
+            ifUp = getDistance(getDistanceLine(ghostX, getTargetX()), getDistanceLine(upPlace, getTargetY()));
+        }
+
+        // Special logic for frightened mode - reverse the distances to move away from target
+        if (currentMode == GhostMode.FRIGHTENED) {
+            if (checkRight) ifRight = 1000 - ifRight;
+            if (checkDown) ifDown = 1000 - ifDown;
+            if (checkLeft) ifLeft = 1000 - ifLeft;
+            if (checkUp) ifUp = 1000 - ifUp;
         }
 
         List<Distance> distances = Arrays.asList(
@@ -151,14 +168,13 @@ public class Ghost extends Entity {
                 new Distance(ifUp, checkUp)
         );
 
-        OptionalDouble minValue = distances.stream()
-                .filter(Distance::isEnabled) // Keep only enabled pairs
-                .mapToDouble(Distance::getValue) // Extract values
-                .min(); // Find the minimum value
+        double minDistance = distances.stream()
+                .filter(Distance::isEnabled)
+                .mapToDouble(Distance::getValue)
+                .min()
+                .orElse(Double.MAX_VALUE);
 
-        double minDistance = minValue.orElse(Double.MAX_VALUE);
-
-        if (minDistance == ifRight){
+        if (minDistance == ifRight) {
             return AllDirections.RIGHT;
         } else if (minDistance == ifDown) {
             return AllDirections.DOWN;
@@ -167,6 +183,7 @@ public class Ghost extends Entity {
         } else if (minDistance == ifUp) {
             return AllDirections.UP;
         }
+
         return AllDirections.RIGHT;
     }
 
@@ -188,7 +205,6 @@ public class Ghost extends Entity {
         }
     }
 
-
     public int getTargetX() {
         return targetX;
     }
@@ -205,87 +221,57 @@ public class Ghost extends Entity {
         this.targetY = targetY;
     }
 
-
-    /*public void setQueuedDirectionGhost(){
-        if(getDistanceX() > getDistanceY()){
-
-            if (playerX > ghostX){
-                queuedDirectionG = AllDirections.RIGHT;
-            }
-            else {
-                queuedDirectionG = AllDirections.LEFT;
-            }
-        }
-        else {
-            if (playerY > ghostY) {
-                queuedDirectionG = AllDirections.DOWN;
-            } else {
-                queuedDirectionG = AllDirections.UP;
-            }
-        }
-    }*/
-
-
     @Override
     public void move() {
+        // Update mode first
+        updateMode();
+
         int nextGhostX = ghostX;
         int nextGhostY = ghostY;
 
-
         queuedDirectionG = recommendedQueuedDirection();
 
-
         switch (queuedDirectionG) {
-            case UP:
+            case AllDirections.UP:
                 nextGhostY = nextGhostY - ghostSpeed;
                 break;
-            case LEFT:
+            case AllDirections.LEFT:
                 nextGhostX = nextGhostX - ghostSpeed;
                 break;
-            case DOWN:
+            case AllDirections.DOWN:
                 nextGhostY = nextGhostY + ghostSpeed;
                 break;
-            case RIGHT:
+            case AllDirections.RIGHT:
                 nextGhostX = nextGhostX + ghostSpeed;
                 break;
             default:
                 break;
         }
 
-        System.out.println(targetX+"    "+targetY);
-
         if (queuedDirectionG != AllDirections.NULL && !collidesWithWalls(nextGhostX, nextGhostY, queuedDirectionG)) {
-
-            queuedDirectionG = recommendedQueuedDirection();
-
-
             currentDirectionG = queuedDirectionG;
-
             queuedDirectionG = AllDirections.NULL;
         }
-
-
 
         nextGhostX = ghostX;
         nextGhostY = ghostY;
 
         switch (currentDirectionG) {
-            case UP:
+            case AllDirections.UP:
                 nextGhostY = ghostY - ghostSpeed;
                 break;
-            case LEFT:
+            case AllDirections.LEFT:
                 nextGhostX = ghostX - ghostSpeed;
                 break;
-            case DOWN:
+            case AllDirections.DOWN:
                 nextGhostY = ghostY + ghostSpeed;
                 break;
-            case RIGHT:
+            case AllDirections.RIGHT:
                 nextGhostX = ghostX + ghostSpeed;
                 break;
             default:
                 break;
         }
-
 
         if (!collidesWithWalls(nextGhostX, nextGhostY, currentDirectionG)) {
             ghostX = nextGhostX;
@@ -295,13 +281,7 @@ public class Ghost extends Entity {
         setLocation(ghostX, ghostY);
     }
 
-    @Override
-    public void run() {
-
-    }
-
-
-    private boolean collidesWithWalls(int x, int y, AllDirections direction) {
+    protected boolean collidesWithWalls(int x, int y, AllDirections direction) {
         int tileSize = map.getTileSize();
 
         // Calculate the indices of the tiles around the player
@@ -317,38 +297,25 @@ public class Ghost extends Entity {
 
         // Check for collisions based on the direction
         switch (direction) {
-            case UP:
+            case AllDirections.UP:
                 return !isWalkable(map.getMap()[upTileY][leftTileX]) || !isWalkable(map.getMap()[upTileY][rightTileX]);
-            case DOWN:
+            case AllDirections.DOWN:
                 return !isWalkable(map.getMap()[downTileY][leftTileX]) || !isWalkable(map.getMap()[downTileY][rightTileX]);
-            case LEFT:
+            case AllDirections.LEFT:
                 return !isWalkable(map.getMap()[upTileY][leftTileX]) || !isWalkable(map.getMap()[downTileY][leftTileX]);
-            case RIGHT:
+            case AllDirections.RIGHT:
                 return !isWalkable(map.getMap()[upTileY][rightTileX]) || !isWalkable(map.getMap()[downTileY][rightTileX]);
             default:
                 return false;
         }
     }
-    private boolean isWalkable(char tile) {
+
+    protected boolean isWalkable(char tile) {
         return tile == 'o' || tile == 'O';
     }
 
-
-
-    private void loadAnimationFrames() {
-        // Load animation frames for the ghost (example frames)
-        // Example implementation
-        // animationFrames = new ArrayList<>();
-        // String[] imageFilePaths = {"res/ghost/ghost1.png", "res/ghost/ghost2.png", "res/ghost/ghost3.png"};
-        // for (String imagePath : imageFilePaths) {
-        //     ImageIcon frame = new ImageIcon(imagePath);
-        //     animationFrames.add(frame);
-        // }
-
-    }
     @Override
     public char[][] getMap() {
-
         return null;
     }
 
@@ -356,10 +323,17 @@ public class Ghost extends Entity {
     public int getGhostSpeed() {
         return ghostSpeed;
     }
-    public void setGhostSpeed(int x){
+
+    public void setGhostSpeed(int x) {
         ghostSpeed = x;
     }
 
-    // Implement additional methods as needed for common entity behaviors
+    // In Ghost.java
+    public int getGhostX() {
+        return this.ghostX;
+    }
 
+    public int getGhostY() {
+        return this.ghostY;
+    }
 }

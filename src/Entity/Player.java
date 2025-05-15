@@ -13,8 +13,8 @@ public class Player extends Entity implements Runnable {
     private static final int NUM_FRAMES = 3;
     private static final int MS = 100;
 
-    static int playerX;
-    static int playerY;
+    private int playerX;
+    private int playerY;
     private int playerSpeed;
     private Keys keyManager;
     private Thread animationThread;
@@ -375,7 +375,10 @@ public class Player extends Entity implements Runnable {
         playerX = x;
         playerY = y;
     }
-
+    // In Player.java
+    public AllDirections getCurrentDirection() {
+        return currentDirectionP;
+    }
     public int getPlayerX() {
         return playerX;
     }
