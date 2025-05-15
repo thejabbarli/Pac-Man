@@ -16,6 +16,7 @@ public class BoostPoison extends Boost {
         setBounds(x, y, size, size);
     }
 
+    // In BoostPoison.java, update the boostTaken method
     @Override
     public void boostTaken(Player player, Ghost ghost) {
         System.out.println("Poison Boost Taken");
@@ -28,6 +29,8 @@ public class BoostPoison extends Boost {
                 e.printStackTrace();
             }
             ghost.setPoisonated(false);
+            ghost.restoreOriginalImage(); // Explicitly restore image
+            ghost.setVisible(true); // Ensure visibility
         });
 
         boostTimerThread.start();

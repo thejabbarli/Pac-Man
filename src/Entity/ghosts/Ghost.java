@@ -27,6 +27,9 @@ public abstract class Ghost extends Entity {
 
     protected int targetX;
     protected int targetY;
+    protected String originalImagePath;
+    private String currentImagePath;
+
 
     // Add enum for ghost mode
     public enum GhostMode {
@@ -37,6 +40,8 @@ public abstract class Ghost extends Entity {
 
     public Ghost(int ghostX, int ghostY, int ghostSpeed, Map map, String myImage, Player player) {
         super(ghostX, ghostY, ghostSpeed, myImage);
+        this.originalImagePath = myImage;
+        this.currentImagePath = myImage;
         this.map = map;
         this.ghostX = ghostX;
         this.ghostY = ghostY;
@@ -58,6 +63,10 @@ public abstract class Ghost extends Entity {
         setBounds(ghostX, ghostY, map.getTileSize(), map.getTileSize());
     }
 
+    public void restoreOriginalImage() {
+        loadImage(originalImagePath);
+        setVisible(true);
+    }
     public void setGhostX(int x) {
         this.ghostX = x;
     }
@@ -66,15 +75,34 @@ public abstract class Ghost extends Entity {
         this.ghostY = y;
     }
 
+    public void setGhostImage(String imagePath) {
+        this.currentImagePath = imagePath;
+
+        // Load and set the new image
+        ImageIcon image = new ImageIcon(imagePath);
+        Image resizedImage = image.getImage().getScaledInstance(map.getTileSize(), map.getTileSize(), Image.SCALE_SMOOTH);
+        setIcon(new ImageIcon(resizedImage));
+        setVisible(true);
+    }
+    // In the Ghost class, update setPoisonated method
     public void setPoisonated(boolean poisonated) {
         this.poisonated = poisonated;
         if (poisonated) {
+            // Set to poisoned image
+            setGhostImage("res/ghosts/ghostAmogusPoisoned.png");
             currentMode = GhostMode.FRIGHTENED;
-            loadImage("res/ghosts/ghostAmogusPoisoned.png");
         } else {
-            currentMode = GhostMode.CHASE; // Return to chase mode when not poisoned
-            updateGhostAppearance();
+            // Reset to original image based on ghost type
+            if (this instanceof Blinky) {
+                setGhostImage("res/ghosts/ghostAmogusRed.png");
+            } else if (this instanceof Inky) {
+                setGhostImage("res/ghosts/ghostAmogusCyan.png");
+            } else if (this instanceof Pinky || this instanceof Clyde) {
+                setGhostImage("res/ghosts/danczakSlawomir.png");
+            }
+            currentMode = GhostMode.CHASE;
         }
+        setVisible(true); // Ensure visibility
     }
 
     public boolean getPoisonated() {

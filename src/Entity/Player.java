@@ -73,7 +73,6 @@ public class Player extends Entity implements Runnable {
                 Image img = icon.getImage();
                 Image resizedImg = img.getScaledInstance(tileSize, tileSize, Image.SCALE_SMOOTH);
                 pacmanFrames[i] = new ImageIcon(resizedImg);
-                System.out.println("Loaded pacman frame " + (i+1) + " from: " + path); // Debug output
             }
         } catch (Exception e) {
             System.err.println("Error loading Pacman images: " + e.getMessage());
@@ -96,38 +95,38 @@ public class Player extends Entity implements Runnable {
     @Override
     public void run() {
         int frameIndex = 0;
-        boolean increasing = true; // Flag to track direction of animation
+        boolean increasing = true;
 
         while (true) {
-            // Update the current frame
-            myFrame = pacmanFrames[frameIndex];
-
-            // Set the direction of animation
-            if (increasing) {
-                frameIndex++;
-                // If we reached the end, start decreasing
-                if (frameIndex >= NUM_FRAMES - 1) {
-                    increasing = false;
-                }
-            } else {
-                frameIndex--;
-                // If we reached the beginning, start increasing
-                if (frameIndex <= 0) {
-                    increasing = true;
-                }
-            }
-
-            // Update the icon
-            setImageIcon(myFrame);
-
-            // Ensure visibility and correct position
-            setVisible(true);
-            setLocation(playerX, playerY);
-
             try {
-                Thread.sleep(150); // Slightly faster animation for smoother effect
+                // Only set icon if valid
+                if (pacmanFrames != null && frameIndex >= 0 && frameIndex < pacmanFrames.length && pacmanFrames[frameIndex] != null) {
+                    myFrame = pacmanFrames[frameIndex];
+                    setImageIcon(myFrame);
+                }
+
+                // Update animation frame index
+                if (increasing) {
+                    frameIndex++;
+                    if (frameIndex >= NUM_FRAMES - 1) {
+                        increasing = false;
+                    }
+                } else {
+                    frameIndex--;
+                    if (frameIndex <= 0) {
+                        increasing = true;
+                    }
+                }
+
+                // Ensure visibility and position
+                setVisible(true);
+                setLocation(playerX, playerY);
+
+                Thread.sleep(200);
             } catch (InterruptedException e) {
                 e.printStackTrace();
+            } catch (Exception e) {
+                System.err.println("Error in player animation: " + e.getMessage());
             }
         }
     }
