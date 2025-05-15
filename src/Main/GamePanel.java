@@ -41,7 +41,6 @@ public class GamePanel extends JLayeredPane implements Runnable {
         this.keyManager = keyManager;
         this.situation = new Situation();
 
-
         map = new Map(mapFilePath, 50); // Assuming TILESIZE is 50
 
         GameSettings.getInstance().setMapConfig(mapFilePath);
@@ -61,8 +60,10 @@ public class GamePanel extends JLayeredPane implements Runnable {
         boostPanel.setOpaque(false);
         boostPanel.setLayout(null);
 
-        player = new Player(GameSettings.getInstance().getPlayerStart().x, GameSettings.getInstance().getPlayerStart().y,
-                10, map, "res/pacman/pacman1", keyManager);
+        // Get the top-left open position from the map
+        java.awt.Point startPoint = map.findTopLeftOpenPosition();
+
+        player = new Player(startPoint.x, startPoint.y, 10, map, "res/pacman/pacman1", keyManager);
         charactersPanel.add(player);
 
         ghostBlue = new Ghost(150, 50, 5, map, "res/ghosts/ghostAmogusCyan.png");
